@@ -2,6 +2,13 @@ from tkinter import Canvas, messagebox, Tk
 from fractions import Fraction
 
 
+# TODO: Make a method to check if a line intercepts an object
+# TODO: Check if destination is already accessible
+# TODO: If dest is not accessible, check which virtual obstacle vertices can be moved to from the starting position
+# TODO: Move to the vertex with the lowest g value
+# TODO: Keep searching for next vertex with lowest g until dest is accessible
+
+
 # Redraw the robot using the top point
 def draw_robot(canvas, leftX, leftY, old_lines=None):
     # Calculate left and right points
