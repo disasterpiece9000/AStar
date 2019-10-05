@@ -16,12 +16,12 @@ def draw_robot(canvas, leftX, leftY, old_lines=None):
     rightY = leftY
     topX = leftX + 25
     topY = leftY - 25
-    
+
     # Delete old lines if they exist
     if old_lines is not None:
         for line in old_lines:
             canvas.delete(line)
-    
+
     # Draw and return new lines
     return [canvas.create_line(topX, topY, rightX, rightY),
             canvas.create_line(rightX, rightY, leftX, leftY),
@@ -37,14 +37,14 @@ def draw_5_sided(canvas, startX, startY):
     bottom_leftY = startY + 100
     top_leftX = startX - 100
     top_leftY = startY + 50
-    
+
     # Draw obstacle
     canvas.create_line(startX, startY, top_rightX, top_rightY)
     canvas.create_line(top_rightX, top_rightY, bottom_rightX, bottom_rightY)
     canvas.create_line(bottom_rightX, bottom_rightY, bottom_leftX, bottom_leftY)
     canvas.create_line(bottom_leftX, bottom_leftY, top_leftX, top_leftY)
     canvas.create_line(top_leftX, top_leftY, startX, startY)
-    
+
     # Return vertices
     return [(startX, startY), (top_rightX, top_rightY), (bottom_rightX, bottom_rightY),
             (bottom_leftX, bottom_leftY), (top_leftX, top_leftY)]
@@ -57,13 +57,13 @@ def draw_4_sided(canvas, startX, startY):
     bottom_rightY = startY + 100
     bottom_leftX = startX - 50
     bottom_leftY = startY + 100
-    
+
     # Draw obstacle
     canvas.create_line(startX, startY, top_rightX, top_rightY)
     canvas.create_line(top_rightX, top_rightY, bottom_rightX, bottom_rightY)
     canvas.create_line(bottom_rightX, bottom_rightY, bottom_leftX, bottom_rightY)
     canvas.create_line(bottom_leftX, bottom_leftY, startX, startY)
-    
+
     # Return vertices
     return [(startX, startY), (top_rightX, top_rightY), (bottom_rightX, bottom_rightY), (bottom_leftX, bottom_leftY)]
 
@@ -73,238 +73,177 @@ def draw_3_sided(canvas, startX, startY):
     leftY = startY + 100
     rightX = startX + 100
     rightY = startY + 100
-    
+
     canvas.create_line(startX, startY, rightX, rightY)
     canvas.create_line(rightX, rightY, leftX, leftY)
     canvas.create_line(leftX, leftY, startX, startY)
-    
+
     return [(startX, startY), (rightX, rightY), (leftX, leftY)]
 
 
 def get_slope(startX, startY, endX, endY):
     rise = None
     run = None
-    
+
     if endX - startX == 0:
         rise = 1 if endY - startY > 0 else -1
         run = 0
-    
+
     else:
         slope = Fraction(endY - startY, endX - startX)
         if endY - startY > 0:
             rise = abs(slope.numerator)
         else:
             rise = -abs(slope.numerator)
-            
+
         if endX - startX > 0:
             run = abs(slope.denominator)
         else:
             run = -abs(slope.denominator)
-    
+
     return rise, run
 
 
-def store_virtual_obstacle(maze, startX, startY, endX, endY):
-    rise, run = get_slope(startX, startY, endX, endY)
-    x = startX
-    y = startY
-    
-    while x != endX or y != endY:
-        maze[y][x] = 1
-        x += run
-        y += rise
+def make_virtual_obstacles(maze, obstacle_list, canvas):
+    line_list = []
 
-
-def draw_virtual_obstacles(maze, obstacle_list, canvas):
     for vert_list in obstacle_list:
         for enum_index, current_vert in enumerate(vert_list):
-            
+
             # If you are at the last vertex then wrap around to first vertex
             if enum_index == len(vert_list) - 1:
                 next_vert = vert_list[0]
             else:
                 next_vert = vert_list[enum_index + 1]
-            
+
             rise, run = get_slope(current_vert[0], current_vert[1], next_vert[0], next_vert[1])
-            
+
             # Trace right point of robot triangle
-            if rise < 0:
+            if rise < 0 and run == 0:
                 canvas.create_line(current_vert[0] - 50, current_vert[1],
                                    next_vert[0] - 50, next_vert[1], fill="red")
-                
-                store_virtual_obstacle(maze, current_vert[0] - 50, current_vert[1],
-                                       next_vert[0] - 50, next_vert[1])
-                
-                canvas.create_line(current_vert[0], current_vert[1],
-                                   current_vert[0] - 50, current_vert[1], fill="red")
-                
-                store_virtual_obstacle(maze, current_vert[0], current_vert[1],
-                                       current_vert[0] - 50, current_vert[1])
-                
+
+                line_list.append([(current_vert[0] - 50, current_vert[1]),
+                                           (next_vert[0] - 50, next_vert[1])])
+
+            # Trace right point of robot triangle
+            elif rise < 0 < run:
+                canvas.create_line(current_vert[0] - 50, current_vert[1],
+                                   next_vert[0] - 50, next_vert[1], fill="red")
+
+                line_list.append([(current_vert[0] - 50, current_vert[1]),
+                                           (next_vert[0] - 50, next_vert[1])])
+
                 canvas.create_line(next_vert[0], next_vert[1],
                                    next_vert[0] - 50, next_vert[1], fill="red")
-                
-                store_virtual_obstacle(maze, next_vert[0], next_vert[1],
-                                       next_vert[0] - 50, next_vert[1])
-            
+
+                line_list.append([(next_vert[0], next_vert[1]),
+                                           (next_vert[0] - 50, next_vert[1])])
+
             # Trace top point of robot triangle
             elif rise == 0 and run < 0:
                 canvas.create_line(current_vert[0] - 25, current_vert[1] + 25,
                                    next_vert[0] - 25, next_vert[1] + 25, fill="blue")
-                
-                store_virtual_obstacle(maze, current_vert[0] - 25, current_vert[1] + 25,
-                                       next_vert[0] - 25, next_vert[1] + 25)
-                
+
+                line_list.append([(current_vert[0] - 25, current_vert[1] + 25),
+                                           (next_vert[0] - 25, next_vert[1] + 25)])
+
                 canvas.create_line(current_vert[0], current_vert[1],
                                    current_vert[0] - 25, current_vert[1] + 25, fill="blue")
-                
-                store_virtual_obstacle(maze, current_vert[0], current_vert[1],
-                                       current_vert[0] - 25, current_vert[1] + 25)
-                
+
+                line_list.append([(current_vert[0], current_vert[1]),
+                                           (current_vert[0] - 25, current_vert[1] + 25)])
+
                 canvas.create_line(next_vert[0] - 25, next_vert[1] + 25,
                                    next_vert[0] - 50, next_vert[1], fill="blue")
-                
-                store_virtual_obstacle(maze, next_vert[0] - 25, next_vert[1] + 25,
-                                       next_vert[0] - 50, next_vert[1])
-            
+
+                line_list.append([(next_vert[0] - 25, next_vert[1] + 25),
+                                           (next_vert[0] - 50, next_vert[1])])
+
             # Otherwise, trace left point of robot triangle
             else:
                 canvas.create_line(current_vert[0], current_vert[1],
                                    next_vert[0], next_vert[1], fill="green")
-                
-                store_virtual_obstacle(maze, current_vert[0], current_vert[1],
-                                       next_vert[0], next_vert[1])
+
+                line_list.append([(current_vert[0], current_vert[1]),
+                                           (next_vert[0], next_vert[1])])
+
+    return line_list
 
 
-def get_path(maze, startX, startY, endX, endY):
-    start_node = Node(startX, startY, None)
-    end_node = Node(endX, endY, None)
-    
-    node_list = []  # List of nodes able to travel to
-    closed_list = []  # List of nodes unable to travel to or already visited
-    node_list.append(start_node)
-    
-    # Loop until no Nodes are left
-    while len(node_list) > 0:
-        current_index = 0
-        current_node = node_list[current_index]
-        
-        # Search node_list for the Node with the lowest F
-        for enum_index, enum_node in enumerate(node_list):
-            if enum_node.f < current_node.f:
-                current_node = enum_node
-                current_index = enum_index
-        
-        node_list.pop(current_index)
-        closed_list.append(current_node)
-        
-        # End has been reached
-        if current_node == end_node:
-            return_path = []
-            while current_node is not None:
-                return_path.append(current_node)
-                current_node = current_node.parent
-            return return_path[::-1]  # Reverse list and return
-        
-        # Find neighboring Nodes
-        neighbors = []
-        for new_pos in [(0, -1), (0, 1), (-1, 0), (1, 0)]:
-            node_posX = current_node.posX + new_pos[1]
-            node_posY = current_node.posY + new_pos[0]
-            
-            # Skip if Node is not in range of the maze or if Node is an obstacle
-            if node_posX > (len(maze) - 1) \
-                    or \
-                    node_posX < 0 \
-                    or \
-                    node_posY > (len(maze[len(maze) - 1]) - 1) \
-                    or \
-                    node_posY < 0 \
-                    or \
-                    maze[node_posY][node_posX] == 1:
-                continue
-            
-            # Check if node is on a line with a slope > 1
-            near_obstacle = False
-            for x in [-1, 0, 1]:
-                for y in [-1, 0, 1]:
-                    try:
-                        if maze[node_posY + y][node_posX + x] == 1:
-                            near_obstacle = True
-                            break
-                    except IndexError:
-                        continue
-            
-            if not near_obstacle:
-                new_node = Node(node_posX, node_posY, current_node)
-                neighbors.append(new_node)
-        
-        for new_pos in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
-            node_posX = current_node.posX + new_pos[1]
-            node_posY = current_node.posY + new_pos[0]
-            
-            # Skip if Node is not in range of the maze or if Node is an obstacle
-            if node_posX > (len(maze) - 1) \
-                    or \
-                    node_posX < 0 \
-                    or \
-                    node_posY > (len(maze[len(maze) - 1]) - 1) \
-                    or \
-                    node_posY < 0 \
-                    or \
-                    maze[node_posY][node_posX] == 1:
-                continue
-            
-            # Can't move diagonally though 2 adjacent obstacles
-            if maze[current_node.posY + new_pos[1]][current_node.posX] == 1 \
-                    or \
-                    maze[current_node.posY][current_node.posX + new_pos[0]] == 1:
-                continue
-            
-            # Check if node is on a line with a slope > 1
-            near_obstacle = False
-            for x in [-1, 0, 1]:
-                for y in [-1, 0, 1]:
-                    try:
-                        if maze[node_posX + x][node_posY + y] == 1:
-                            near_obstacle = True
-                            break
-                    except IndexError:
-                        continue
-            
-            if not near_obstacle:
-                new_node = Node(node_posX, node_posY, current_node)
-                neighbors.append(new_node)
-        
-        # Find the next Node to travel to
-        for neighbor in neighbors:
-            # Skip if neighbor is already in closed list
-            if neighbor in closed_list:
-                continue
-            
-            # Calculate f, g, and h
-            neighbor.g = current_node.g + 1
-            # Using Pythagorean's Theorem
-            neighbor.h = ((neighbor.posX - end_node.posX) ** 2) + \
-                         ((neighbor.posY - end_node.posY) ** 2)
-            neighbor.f = neighbor.g + neighbor.h
-            
-            # Skip if the neighbor is already in open list and has been visited before
-            skip_node = False
-            for open_node in node_list:
-                if neighbor == open_node and neighbor.g > open_node.g:
-                    skip_node = True
-                    break
-            if skip_node:
-                continue
-            
-            # Add the neighbor to node_list
-            node_list.append(neighbor)
+def find_path(current_point, path, start, end, line_list, g):
+
+    # Check if robot can move to destination immediately
+    dest_visible = True
+    for line in line_list:
+        if check_intercept(current_point, end, line[0], line[1]):
+            dest_visible = False
+            break
+
+    if dest_visible:
+        path.append(end)
+        return path
+
+    # Find all visible nodes
+    visible_verts = []
+    for move_line in line_list:
+        node_visible = True
+        move_point = move_line[0]
+
+        # Check path to vertex against all other obstacle lines
+        for check_line in line_list:
+            if check_intercept(current_point, move_point, check_line[0], check_line[1]):
+                node_visible = False
+                break
+
+        # If no lines intersect then the vertex is visible
+        if node_visible:
+            visible_verts.append(move_line[0])
+
+    # Find the vertex with the lowest F value
+    next_move = visible_verts[0]
+    min_f = get_f(current_point, visible_verts[0], end, g)[0]
+
+    for vertex in visible_verts:
+        f, g = get_f(current_point, vertex, end, g)
+        if f < min_f:
+            next_move = vertex
+            min_f = f
+
+    path.append(next_move)
+    return find_path(next_move, path, start, end, line_list, g)
 
 
-def draw_line(canvas, master, oldX, oldY, newX, newY):
-    canvas.create_line(oldX, oldY, newX, newY)
-    master.update()
+def get_f(start, vertex, end, g):
+    g = ((start[0] - vertex[0]) ** 2) + ((start[1] - vertex[1]) ** 2) + g
+    h = ((vertex[0] - end[0]) ** 2) + ((vertex[1] - end[1]) ** 2)
+    return g + h, g
+
+
+def check_intercept(start1, end1, start2, end2):
+
+    # If start or end points are the same, ignore intersection
+    if start1 in [start2, end2] or end1 in [start2, end2]:
+        return False
+
+    aX = end1[0] - start1[0]
+    aY = end1[1] - start1[1]
+
+    bX = start2[0] - end2[0]
+    bY = start2[1] - end2[1]
+
+    dX = start2[0] - start1[0]
+    dY = start2[1] - start1[1]
+
+    det = aX * bY - aY * bX
+
+    if det == 0:
+        return False
+
+    r = (dX * bY - dY * bX) / det
+    s = (aX * dY - aY * dX) / det
+
+    return not (r < 0 or r > 1 or s < 0 or s > 1)
 
 
 class Node:
@@ -315,7 +254,7 @@ class Node:
         self.g = 0
         self.h = 0
         self.f = 0
-    
+
     def __eq__(self, other):
         return other.posX == self.posX and other.posY == self.posY
 
@@ -325,16 +264,16 @@ def main():
     master = Tk()
     master.geometry("750x750")
     canvas = Canvas(master, width=750, height=750)
-    
+
     # Create a 750x750 array to store virtual objects
     maze = [[0 for _ in range(750)] for _ in range(750)]
-    
+
     # Draw robot triangle
     robot_leftX = 230
     robot_leftY = 230
     canvas.pack()
     draw_robot(canvas, robot_leftX, robot_leftY)
-    
+
     # Destination
     destX = 550
     destY = 550
@@ -342,29 +281,32 @@ def main():
     rightY = destY
     topX = destX + 25
     topY = destY - 25
-    
+
     # Draw and return new lines
     canvas.create_line(topX, topY, rightX, rightY)
     canvas.create_line(rightX, rightY, destX, destY)
     canvas.create_line(topX, topY, destX, destY)
-    
+
     # Store all obstacle's vertices in a list
     obstacle_list = []
-    
+
     # Draw obstacle
     obstacle_list.append(draw_3_sided(canvas, 350, 250))
-    
-    draw_virtual_obstacles(maze, obstacle_list, canvas)
-    
-    path = get_path(maze, robot_leftX, robot_leftY, destX, destY)
-    
-    old_node = path[0]
-    for index, node in enumerate(path):
-        new_node = node
-        master.after(ms=5, func=draw_line(canvas, master, old_node.posX, old_node.posY,
-                                          new_node.posX, new_node.posY))
-        old_node = new_node
-    
+
+    obstacle_line_list = make_virtual_obstacles(maze, obstacle_list, canvas)
+
+    path = find_path(current_point=(robot_leftX, robot_leftY), path=[(robot_leftX, robot_leftY)],
+                     start=(robot_leftX, robot_leftY), end=(destX, destY),
+                     line_list=obstacle_line_list, g=0)
+
+    for index, vertex in enumerate(path):
+        if index == len(path) - 1:
+            break
+
+        next_vertex = path[index + 1]
+        canvas.create_line(vertex[0], vertex[1], next_vertex[0], next_vertex[1])
+
+
     master.mainloop()
 
 
