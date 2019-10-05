@@ -8,7 +8,7 @@ from fractions import Fraction
 # TODO: Move to the vertex with the lowest g value
 # TODO: Keep searching for next vertex with lowest g until dest is accessible
 
-#sdgsdgs
+
 
 # Redraw the robot using the top point
 def draw_robot(canvas, leftX, leftY, old_lines=None):
