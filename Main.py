@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.path as path
 
 
+# TODO: Extend vertex on top to avoid vertex on line
+
 # Redraw the robot using the top point
 def draw_robot(canvas, leftX, leftY, old_lines=None):
     # Calculate left and right points
@@ -100,7 +102,7 @@ def get_slope(startX, startY, endX, endY):
     return rise, run
 
 
-def make_virtual_obstacles(obstacle_list, canvas):
+def make_virtual_obstacles(obstacle_list, canvas, master):
     line_list = []
     
     for vert_list in obstacle_list:
@@ -116,50 +118,50 @@ def make_virtual_obstacles(obstacle_list, canvas):
             
             # Trace right point of robot triangle
             if rise < 0 and run == 0:
-                canvas.create_line(current_vert[0] - 50, current_vert[1],
-                                   next_vert[0] - 50, next_vert[1], fill="red")
+                draw_line(canvas, current_vert[0] - 50, current_vert[1],
+                          next_vert[0] - 50, next_vert[1], fill="red")
                 
                 line_list.append([(current_vert[0] - 50, current_vert[1]),
                                   (next_vert[0] - 50, next_vert[1])])
             
             # Trace right point of robot triangle
             elif rise < 0 < run:
-                canvas.create_line(current_vert[0] - 50, current_vert[1],
-                                   next_vert[0] - 50, next_vert[1], fill="red")
+                master.after(1000, draw_line(canvas, current_vert[0] - 50, current_vert[1],
+                                            next_vert[0] - 50, next_vert[1], fill="red"))
                 
                 line_list.append([(current_vert[0] - 50, current_vert[1]),
                                   (next_vert[0] - 50, next_vert[1])])
                 
-                canvas.create_line(next_vert[0] - 50, next_vert[1],
-                                   next_vert[0], next_vert[1], fill="red")
+                master.after(1000, draw_line(canvas, next_vert[0] - 50, next_vert[1],
+                                            next_vert[0], next_vert[1], fill="red"))
                 
                 line_list.append([(next_vert[0] - 50, next_vert[1]),
                                   (next_vert[0], next_vert[1])])
             
             # Trace top point of robot triangle
             elif rise == 0 and run < 0:
-                canvas.create_line(current_vert[0] - 25, current_vert[1] + 25,
-                                   next_vert[0] - 25, next_vert[1] + 25, fill="blue")
+                master.after(750, draw_line(canvas, current_vert[0] - 25, current_vert[1] + 25,
+                                            next_vert[0] - 25, next_vert[1] + 25, fill="red"))
                 
                 line_list.append([(current_vert[0] - 25, current_vert[1] + 25),
                                   (next_vert[0] - 25, next_vert[1] + 25)])
                 
-                canvas.create_line(current_vert[0], current_vert[1],
-                                   current_vert[0] - 25, current_vert[1] + 25, fill="blue")
+                master.after(750, draw_line(canvas, current_vert[0], current_vert[1],
+                                            current_vert[0] - 25, current_vert[1] + 25, fill="red"))
                 
                 line_list.append([(current_vert[0], current_vert[1]),
                                   (current_vert[0] - 25, current_vert[1] + 25)])
                 
-                canvas.create_line(next_vert[0] - 25, next_vert[1] + 25,
-                                   next_vert[0] - 50, next_vert[1], fill="blue")
+                master.after(750, draw_line(canvas, next_vert[0] - 25, next_vert[1] + 25,
+                                            next_vert[0] - 50, next_vert[1], fill="red"))
                 
                 line_list.append([(next_vert[0] - 25, next_vert[1] + 25),
                                   (next_vert[0] - 50, next_vert[1])])
             
             # Otherwise, trace left point of robot triangle
             else:
-                canvas.create_line(current_vert[0], current_vert[1],
-                                   next_vert[0], next_vert[1], fill="green")
+                master.after(750, draw_line(canvas, current_vert[0], current_vert[1],
+                                            next_vert[0], next_vert[1], fill="red"))
                 
                 line_list.append([(current_vert[0], current_vert[1]),
                                   (next_vert[0], next_vert[1])])
@@ -282,6 +284,11 @@ def check_intercept(start1, end1, start2, end2):
     return not (r < 0 or r > 1 or s < 0 or s > 1)
 
 
+def draw_line(canvas, aX, aY, bX, bY, fill):
+    canvas.create_line(aX, aY, bX, bY, fill=fill)
+    canvas.update()
+
+
 class Node:
     def __init__(self, posX, posY, parent):
         self.posX = posX
@@ -305,7 +312,7 @@ def main():
     robot_leftX = 230
     robot_leftY = 230
     canvas.pack()
-    draw_robot(canvas, robot_leftX, robot_leftY)
+    robot_lines = draw_robot(canvas, robot_leftX, robot_leftY)
     
     # Destination
     destX = 550
@@ -324,9 +331,9 @@ def main():
     obstacle_list = []
     
     # Draw obstacle
-    obstacle_list.append(draw_5_sided(canvas, 350, 250))
+    obstacle_list.append(draw_4_sided(canvas, 350, 250))
     
-    obstacle_line_list = make_virtual_obstacles(obstacle_list, canvas)
+    obstacle_line_list = make_virtual_obstacles(obstacle_list, canvas, master)
     
     return_path = find_path(current_point=(robot_leftX, robot_leftY), robot_path=[(robot_leftX, robot_leftY)],
                             start=(robot_leftX, robot_leftY), end=(destX, destY),
@@ -337,7 +344,8 @@ def main():
             break
         
         next_vertex = return_path[index + 1]
-        canvas.create_line(vertex[0], vertex[1], next_vertex[0], next_vertex[1])
+        robot_lines = draw_robot(canvas, next_vertex[0], next_vertex[1], robot_lines)
+        master.after(1000, draw_line(canvas, vertex[0], vertex[1], next_vertex[0], next_vertex[1], "green"))
     
     master.mainloop()
 
