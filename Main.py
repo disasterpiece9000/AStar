@@ -3,7 +3,7 @@ from tkinter import Canvas, Tk
 from fractions import Fraction
 import numpy as np
 import matplotlib.path as path
-from random import randint
+from random import randint, uniform
 
 
 # TODO: Extend vertex on top to avoid vertex on line
@@ -22,20 +22,21 @@ def draw_robot(canvas, leftX, leftY, old_lines=None):
             canvas.delete(line)
     
     # Draw and return new lines
-    return [canvas.create_line(topX, topY, rightX, rightY),
-            canvas.create_line(rightX, rightY, leftX, leftY),
-            canvas.create_line(leftX, leftY, topX, topY)]
+    return [canvas.create_line(topX, topY, rightX, rightY, fill="blue"),
+            canvas.create_line(rightX, rightY, leftX, leftY, fill="blue"),
+            canvas.create_line(leftX, leftY, topX, topY, fill="blue")]
 
 
-def draw_5_sided(canvas, startX, startY):
-    top_rightX = startX + 100
-    top_rightY = startY + 50
-    bottom_rightX = startX + 100
-    bottom_rightY = startY + 100
-    bottom_leftX = startX - 100
-    bottom_leftY = startY + 100
-    top_leftX = startX - 100
-    top_leftY = startY + 50
+def draw_5_sided(canvas, startX, startY, scale):
+    
+    top_rightX = startX + int(100 * scale)
+    top_rightY = startY + int(50 * scale)
+    bottom_rightX = startX + int(100 * scale)
+    bottom_rightY = startY + int(100 * scale)
+    bottom_leftX = startX - int(100 * scale)
+    bottom_leftY = startY + int(100 * scale)
+    top_leftX = startX - int(100 * scale)
+    top_leftY = startY + int(50 * scale)
     
     canvas.create_line(startX, startY, top_rightX, top_rightY)
     canvas.create_line(top_rightX, top_rightY, bottom_rightX, bottom_rightY)
@@ -47,13 +48,13 @@ def draw_5_sided(canvas, startX, startY):
             (bottom_leftX, bottom_leftY), (top_leftX, top_leftY)]
 
 
-def draw_4_sided(canvas, startX, startY):
-    top_rightX = startX + 100
+def draw_4_sided(canvas, startX, startY, scale):
+    top_rightX = startX + int(100 * scale)
     top_rightY = startY
-    bottom_rightX = startX + 150
-    bottom_rightY = startY + 100
-    bottom_leftX = startX - 50
-    bottom_leftY = startY + 100
+    bottom_rightX = startX + int(150 * scale)
+    bottom_rightY = startY + int(100 * scale)
+    bottom_leftX = startX - int(50 * scale)
+    bottom_leftY = startY + int(100 * scale)
     
     canvas.create_line(startX, startY, top_rightX, top_rightY)
     canvas.create_line(top_rightX, top_rightY, bottom_rightX, bottom_rightY)
@@ -63,11 +64,11 @@ def draw_4_sided(canvas, startX, startY):
     return [(startX, startY), (top_rightX, top_rightY), (bottom_rightX, bottom_rightY), (bottom_leftX, bottom_leftY)]
 
 
-def draw_3_sided(canvas, startX, startY):
-    leftX = startX - 100
-    leftY = startY + 100
-    rightX = startX + 100
-    rightY = startY + 100
+def draw_3_sided(canvas, startX, startY, scale):
+    leftX = startX - int(100 * scale)
+    leftY = startY + int(100 * scale)
+    rightX = startX + int(100 * scale)
+    rightY = startY + int(100 * scale)
     
     canvas.create_line(startX, startY, rightX, rightY)
     canvas.create_line(rightX, rightY, leftX, leftY)
@@ -365,26 +366,27 @@ def main():
     topY = destY - 25
     
     # Draw and return new lines
-    canvas.create_line(topX, topY, rightX, rightY)
-    canvas.create_line(rightX, rightY, destX, destY)
-    canvas.create_line(topX, topY, destX, destY)
+    canvas.create_line(topX, topY, rightX, rightY, fill="green")
+    canvas.create_line(rightX, rightY, destX, destY, fill="green")
+    canvas.create_line(topX, topY, destX, destY, fill="green")
     
     # Store all obstacle's vertices in a list
     obstacle_list = []
     
     # Create random obstacles
-    num_obstacles = randint(1, 4)  # Get a random number of obstacles
+    num_obstacles = randint(3, 5)  # Get a random number of obstacles
     for _ in range(num_obstacles):
         obstacle_type = randint(3, 5)  # Get a random type of obstacle
-        obstacleX = randint(250, 500)  # Get a random starting X position
-        obstacleY = randint(250, 500)  # Get a random starting y position
+        obstacleX = randint(150, 600)  # Get a random starting X position
+        obstacleY = randint(150, 600)  # Get a random starting y position
+        scale = uniform(0.3, 1)
         
         if obstacle_type == 3:
-            obstacle_list.append(draw_3_sided(canvas, obstacleX, obstacleY))
+            obstacle_list.append(draw_3_sided(canvas, obstacleX, obstacleY, scale))
         elif obstacle_type == 4:
-            obstacle_list.append(draw_4_sided(canvas, obstacleX, obstacleY))
+            obstacle_list.append(draw_4_sided(canvas, obstacleX, obstacleY, scale))
         elif obstacle_type == 5:
-            obstacle_list.append(draw_5_sided(canvas, obstacleX, obstacleY))
+            obstacle_list.append(draw_5_sided(canvas, obstacleX, obstacleY, scale))
     
     obstacle_line_list = make_virtual_obstacles(obstacle_list, canvas, master)
     
