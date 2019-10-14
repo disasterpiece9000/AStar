@@ -6,8 +6,6 @@ import matplotlib.path as path
 from random import randint, uniform
 
 
-# TODO: Extend vertex on top to avoid vertex on line
-
 # Draw the robot using the left point
 def draw_robot(canvas, leftX, leftY, old_lines=None):
     # Calculate left and right points
@@ -176,12 +174,15 @@ def make_virtual_obstacles(obstacle_list, canvas, master):
 
 
 def new_path(start, end, obstacle_list):
-    open_list = []
-    closed_list = []
+    open_list = []  # List of accessible nodes
+    closed_list = []    # List of inaccessible nodes
     
     open_list.append(start)
     
+    # Main path finding loop
     while len(open_list) > 0:
+        
+        # Find the open node with the lowest f value
         lowest_node = open_list[0]
         lowest_index = 0
         for index, node in enumerate(open_list):
@@ -191,50 +192,49 @@ def new_path(start, end, obstacle_list):
         
         open_list.pop(lowest_index)
         closed_list.append(lowest_node)
-
-        # If robot can move to destination, go there and end the path
-        dest_visible = True
-        for line_list in obstacle_list:
-            for line in line_list:
-                if check_intercept(lowest_node, end,
-                                   Node(line[0][0], line[0][1], None), Node(line[1][0], line[1][1], None)):
-                    dest_visible = False
-                    break
-
-        if dest_visible:
+        
+        # If the lowest node is the destination then move there and return the path
+        if lowest_node == end:
             result_path = [end]
             current_node = lowest_node
             while current_node is not None:
                 result_path.append(current_node)
                 current_node = current_node.parent
-            return result_path[::-1]
+            return result_path[::-1]    # Reverse the path so it's in chronological order
         
         current_point = lowest_node
         
+        # Find all nodes that are visible from the lowest f node
         visible_verts = []
-        for line_list in obstacle_list:
+        vert_list = obstacle_list + [[[(end.posX, end.posY), (end.posX, end.posY)]]]   # Add the destination to the list
+        for line_list in vert_list:
             for line in line_list:
-                node_visible = True
+                node_intercepts = False
                 move_point = Node(line[0][0], line[0][1], None)
                 move_line = current_point, move_point
                 
-                # Check path to vertex against all other obstacle lines
+                # Check if the path to vertex intercepts any other obstacle lines
                 for check_line in [line for sublist in obstacle_list for line in sublist]:
                     if check_intercept(current_point, move_point, Node(check_line[0][0], check_line[0][1], None),
                                        Node(check_line[1][0], check_line[1][1], None)):
-                        node_visible = False
+                        node_intercepts = True
                         break
                 
-                # If no lines intersect then the vertex is visible
-                if node_visible and not check_inside(move_line, line_list):
+                # If the path doesn't intersect and is not inside an obstacle then the vertex is visible
+                if not node_intercepts and not check_inside(move_line, line_list):
                     visible_verts.append(Node(move_point.posX, move_point.posY, current_point))
         
+        # Check which vertices should be added to the open list
         for vertex in visible_verts:
+            
+            # Skip vertices already in the closed list
             if vertex in closed_list:
                 continue
             
+            # Calculate and store f, g, and h values
             vertex.f, vertex.g = get_f(current_point, vertex, end)
             
+            # Skip nodes if they already exist in open list with a more efficient path
             skip = False
             for open_vertex in open_list:
                 if vertex == open_vertex and vertex.g > open_vertex.g:
