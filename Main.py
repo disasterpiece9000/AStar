@@ -1,13 +1,14 @@
 from math import sqrt
-from tkinter import Canvas, messagebox, Tk
+from tkinter import Canvas, Tk
 from fractions import Fraction
 import numpy as np
 import matplotlib.path as path
+from random import randint
 
 
 # TODO: Extend vertex on top to avoid vertex on line
 
-# Redraw the robot using the top point
+# Draw the robot using the left point
 def draw_robot(canvas, leftX, leftY, old_lines=None):
     # Calculate left and right points
     rightX = leftX + 50
@@ -36,14 +37,12 @@ def draw_5_sided(canvas, startX, startY):
     top_leftX = startX - 100
     top_leftY = startY + 50
     
-    # Draw obstacle
     canvas.create_line(startX, startY, top_rightX, top_rightY)
     canvas.create_line(top_rightX, top_rightY, bottom_rightX, bottom_rightY)
     canvas.create_line(bottom_rightX, bottom_rightY, bottom_leftX, bottom_leftY)
     canvas.create_line(bottom_leftX, bottom_leftY, top_leftX, top_leftY)
     canvas.create_line(top_leftX, top_leftY, startX, startY)
     
-    # Return vertices
     return [(startX, startY), (top_rightX, top_rightY), (bottom_rightX, bottom_rightY),
             (bottom_leftX, bottom_leftY), (top_leftX, top_leftY)]
 
@@ -56,13 +55,11 @@ def draw_4_sided(canvas, startX, startY):
     bottom_leftX = startX - 50
     bottom_leftY = startY + 100
     
-    # Draw obstacle
     canvas.create_line(startX, startY, top_rightX, top_rightY)
     canvas.create_line(top_rightX, top_rightY, bottom_rightX, bottom_rightY)
     canvas.create_line(bottom_rightX, bottom_rightY, bottom_leftX, bottom_rightY)
     canvas.create_line(bottom_leftX, bottom_leftY, startX, startY)
     
-    # Return vertices
     return [(startX, startY), (top_rightX, top_rightY), (bottom_rightX, bottom_rightY), (bottom_leftX, bottom_leftY)]
 
 
@@ -79,10 +76,9 @@ def draw_3_sided(canvas, startX, startY):
     return [(startX, startY), (rightX, rightY), (leftX, leftY)]
 
 
+# Return rise and run for the line connecting the 2 given points
 def get_slope(startX, startY, endX, endY):
-    rise = None
-    run = None
-    
+    # Handle DivideByZero error
     if endX - startX == 0:
         rise = 1 if endY - startY > 0 else -1
         run = 0
@@ -102,10 +98,16 @@ def get_slope(startX, startY, endX, endY):
     return rise, run
 
 
+# Create virtual obstacles surrounding the given obstacles
 def make_virtual_obstacles(obstacle_list, canvas, master):
-    line_list = []
+    master_list = []
     
+    # Loop through all obstacles
     for vert_list in obstacle_list:
+        
+        line_list = []  # Store all lines from the virtual obstacles
+        
+        # Loop through each vertex of each obstacle
         for enum_index, current_vert in enumerate(vert_list):
             
             # If you are at the last vertex then wrap around to first vertex
@@ -114,6 +116,7 @@ def make_virtual_obstacles(obstacle_list, canvas, master):
             else:
                 next_vert = vert_list[enum_index + 1]
             
+            # Use slope to determine which side of the triangle to trace
             rise, run = get_slope(current_vert[0], current_vert[1], next_vert[0], next_vert[1])
             
             # Trace right point of robot triangle
@@ -127,13 +130,13 @@ def make_virtual_obstacles(obstacle_list, canvas, master):
             # Trace right point of robot triangle
             elif rise < 0 < run:
                 master.after(1000, draw_line(canvas, current_vert[0] - 50, current_vert[1],
-                                            next_vert[0] - 50, next_vert[1], fill="red"))
+                                             next_vert[0] - 50, next_vert[1], fill="red"))
                 
                 line_list.append([(current_vert[0] - 50, current_vert[1]),
                                   (next_vert[0] - 50, next_vert[1])])
                 
                 master.after(1000, draw_line(canvas, next_vert[0] - 50, next_vert[1],
-                                            next_vert[0], next_vert[1], fill="red"))
+                                             next_vert[0], next_vert[1], fill="red"))
                 
                 line_list.append([(next_vert[0] - 50, next_vert[1]),
                                   (next_vert[0], next_vert[1])])
@@ -165,57 +168,88 @@ def make_virtual_obstacles(obstacle_list, canvas, master):
                 
                 line_list.append([(current_vert[0], current_vert[1]),
                                   (next_vert[0], next_vert[1])])
-    
-    return line_list
-
-
-def find_path(current_point, robot_path, start, end, line_list, g):
-    # Check if robot can move to destination immediately
-    dest_visible = True
-    for line in line_list:
-        if check_intercept(current_point, end, line[0], line[1]):
-            dest_visible = False
-            break
-    
-    if dest_visible:
-        robot_path.append(end)
-        return robot_path
-    
-    # Find all visible nodes
-    visible_verts = []
-    for line in line_list:
-        node_visible = True
-        move_point = line[0]
-        move_line = current_point, move_point
         
-        # Check path to vertex against all other obstacle lines
-        for check_line in line_list:
-            if check_intercept(current_point, move_point, check_line[0], check_line[1]):
-                node_visible = False
-                break
+        master_list.append(line_list)
+    
+    return master_list
+
+
+def new_path(start, end, obstacle_list):
+    open_list = []
+    closed_list = []
+    
+    open_list.append(start)
+    
+    while len(open_list) > 0:
+        lowest_node = open_list[0]
+        lowest_index = 0
+        for index, node in enumerate(open_list):
+            if node.f < lowest_node.f:
+                lowest_node = node
+                lowest_index = index
         
-        # If no lines intersect then the vertex is visible
-        if node_visible and not check_inside(move_line, line_list):
-            visible_verts.append(move_point)
-    
-    # Find the vertex with the lowest F value
-    next_move = visible_verts[0]
-    min_f = get_f(current_point, visible_verts[0], end, g)[0]
-    
-    for vertex in visible_verts:
-        f, g = get_f(current_point, vertex, end, g)
-        if f < min_f:
-            next_move = vertex
-            min_f = f
-    
-    robot_path.append(next_move)
-    return find_path(next_move, robot_path, start, end, line_list, g)
+        open_list.pop(lowest_index)
+        closed_list.append(lowest_node)
+
+        # If robot can move to destination, go there and end the path
+        dest_visible = True
+        for line_list in obstacle_list:
+            for line in line_list:
+                if check_intercept(lowest_node, end,
+                                   Node(line[0][0], line[0][1], None), Node(line[1][0], line[1][1], None)):
+                    dest_visible = False
+                    break
+
+        if dest_visible:
+            result_path = [end]
+            current_node = lowest_node
+            while current_node is not None:
+                result_path.append(current_node)
+                current_node = current_node.parent
+            return result_path[::-1]
+        
+        current_point = lowest_node
+        
+        visible_verts = []
+        for line_list in obstacle_list:
+            for line in line_list:
+                node_visible = True
+                move_point = Node(line[0][0], line[0][1], None)
+                move_line = current_point, move_point
+                
+                # Check path to vertex against all other obstacle lines
+                for check_line in [line for sublist in obstacle_list for line in sublist]:
+                    if check_intercept(current_point, move_point, Node(check_line[0][0], check_line[0][1], None),
+                                       Node(check_line[1][0], check_line[1][1], None)):
+                        node_visible = False
+                        break
+                
+                # If no lines intersect then the vertex is visible
+                if node_visible and not check_inside(move_line, line_list):
+                    visible_verts.append(Node(move_point.posX, move_point.posY, current_point))
+        
+        for vertex in visible_verts:
+            if vertex in closed_list:
+                continue
+            
+            vertex.f, vertex.g = get_f(current_point, vertex, end)
+            
+            skip = False
+            for open_vertex in open_list:
+                if vertex == open_vertex and vertex.g > open_vertex.g:
+                    skip = True
+                    break
+            if skip:
+                continue
+            
+            open_list.append(vertex)
 
 
+# Check if a line is inside an obstacle
 def check_inside(move_line, line_list):
     # Calculate mid point
-    mid_point = ((move_line[0][0] + move_line[1][0]) / 2,
-                 (move_line[0][1] + move_line[1][1]) / 2)
+    mid_point = ((move_line[0].posX + move_line[1].posX) / 2,
+                 (move_line[0].posY + move_line[1].posY) / 2)
     
     # Get ordered list of vertexes
     start_vert = line_list[0][0]
@@ -234,7 +268,10 @@ def check_inside(move_line, line_list):
     codes[0] = path.Path.MOVETO
     codes[len(codes) - 1] = path.Path.CLOSEPOLY
     
+    # Make virtual obstacle from ordered vertices
     obstacle_plot_path = path.Path(np.array(vert_list), codes)
+    
+    # Check that the point is not inside an obstacle or on an obstacle's edge
     if obstacle_plot_path.contains_point(mid_point) \
             and not point_on_line(mid_point, line_list):
         return True
@@ -242,10 +279,12 @@ def check_inside(move_line, line_list):
         return False
 
 
+# Return the distance between two points
 def get_distance(pointA, pointB):
     return sqrt((pointA[0] - pointB[0]) ** 2 + (pointA[1] - pointB[1]) ** 2)
 
 
+# Check if a point falls on a virtual obstacle's line
 def point_on_line(point, line_list):
     for line in line_list:
         if get_distance(line[0], point) + get_distance(point, line[1]) == get_distance(line[0], line[1]):
@@ -253,25 +292,28 @@ def point_on_line(point, line_list):
     return False
 
 
-def get_f(start, vertex, end, g):
-    g = ((start[0] - vertex[0]) ** 2) + ((start[1] - vertex[1]) ** 2) + g
-    h = ((vertex[0] - end[0]) ** 2) + ((vertex[1] - end[1]) ** 2)
-    return g + h, g
+# Calculate f value using Pythagorean's Theorem
+def get_f(start, vertex, end):
+    new_g = ((start.posX - vertex.posX) ** 2) + ((start.posY - vertex.posY) ** 2) + start.g
+    new_h = ((vertex.posX - end.posX) ** 2) + ((vertex.posY - end.posY) ** 2)
+    f = new_g + new_h
+    return f, new_g
 
 
+# Check if two lines intersect
 def check_intercept(start1, end1, start2, end2):
     # If start or end points are the same, ignore intersection
     if start1 in [start2, end2] or end1 in [start2, end2]:
         return False
     
-    aX = end1[0] - start1[0]
-    aY = end1[1] - start1[1]
+    aX = end1.posX - start1.posX
+    aY = end1.posY - start1.posY
     
-    bX = start2[0] - end2[0]
-    bY = start2[1] - end2[1]
+    bX = start2.posX - end2.posX
+    bY = start2.posY - end2.posY
     
-    dX = start2[0] - start1[0]
-    dY = start2[1] - start1[1]
+    dX = start2.posX - start1.posX
+    dY = start2.posY - start1.posY
     
     det = aX * bY - aY * bX
     
@@ -309,14 +351,14 @@ def main():
     canvas = Canvas(master, width=750, height=750)
     
     # Draw robot triangle
-    robot_leftX = 230
-    robot_leftY = 230
+    robot_leftX = randint(50, 700)
+    robot_leftY = randint(50, 200)
     canvas.pack()
     robot_lines = draw_robot(canvas, robot_leftX, robot_leftY)
     
     # Destination
-    destX = 550
-    destY = 550
+    destX = randint(50, 700)
+    destY = randint(550, 700)
     rightX = destX + 50
     rightY = destY
     topX = destX + 25
@@ -330,22 +372,33 @@ def main():
     # Store all obstacle's vertices in a list
     obstacle_list = []
     
-    # Draw obstacle
-    obstacle_list.append(draw_4_sided(canvas, 350, 250))
+    # Create random obstacles
+    num_obstacles = randint(1, 4)  # Get a random number of obstacles
+    for _ in range(num_obstacles):
+        obstacle_type = randint(3, 5)  # Get a random type of obstacle
+        obstacleX = randint(250, 500)  # Get a random starting X position
+        obstacleY = randint(250, 500)  # Get a random starting y position
+        
+        if obstacle_type == 3:
+            obstacle_list.append(draw_3_sided(canvas, obstacleX, obstacleY))
+        elif obstacle_type == 4:
+            obstacle_list.append(draw_4_sided(canvas, obstacleX, obstacleY))
+        elif obstacle_type == 5:
+            obstacle_list.append(draw_5_sided(canvas, obstacleX, obstacleY))
     
     obstacle_line_list = make_virtual_obstacles(obstacle_list, canvas, master)
     
-    return_path = find_path(current_point=(robot_leftX, robot_leftY), robot_path=[(robot_leftX, robot_leftY)],
-                            start=(robot_leftX, robot_leftY), end=(destX, destY),
-                            line_list=obstacle_line_list, g=0)
+    return_path = new_path(start=Node(robot_leftX, robot_leftY, None), end=Node(destX, destY, None),
+                           obstacle_list=obstacle_line_list)
     
+    # Draw path to destination
     for index, vertex in enumerate(return_path):
         if index == len(return_path) - 1:
             break
         
         next_vertex = return_path[index + 1]
-        robot_lines = draw_robot(canvas, next_vertex[0], next_vertex[1], robot_lines)
-        master.after(1000, draw_line(canvas, vertex[0], vertex[1], next_vertex[0], next_vertex[1], "green"))
+        robot_lines = draw_robot(canvas, next_vertex.posX, next_vertex.posY, robot_lines)
+        master.after(1000, draw_line(canvas, vertex.posX, vertex.posY, next_vertex.posX, next_vertex.posY, "green"))
     
     master.mainloop()
 
